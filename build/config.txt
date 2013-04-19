@@ -1,0 +1,4 @@
+workingdir=E:\\
+testdir=TestEncoder
+repository=https://ggopu@bitbucket.org/multicoreware/xhevc
+
