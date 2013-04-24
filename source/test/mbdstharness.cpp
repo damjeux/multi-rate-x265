@@ -1,0 +1,374 @@
+/*****************************************************************************
+ * Copyright (C) 2013 x265 project
+ *
+ * Authors: Steve Borho <steve@borho.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
+ *
+ * This program is also available under a commercial proprietary license.
+ * For more information, contact us at licensing@multicorewareinc.com.
+ *****************************************************************************/
+
+#include "mbdstharness.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <malloc.h>
+#ifdef __MINGW32__
+#define _aligned_malloc __mingw_aligned_malloc
+#define _aligned_free  __mingw_aligned_free
+#endif
+
+using namespace x265;
+
+const char *ButterflyConf_names[] =
+{
+    "4\t",
+    "Inverse4",
+    "8\t",
+    "Inverse8",
+    "16\t",
+    "Inverse16",
+    "32\t",
+    "Inverse32"
+};
+
+enum Butterflies
+{
+    butterfly_4,
+    butterfly_inverse_4,
+    butterfly_8,
+    butterfly_inverse_8,
+    butterfly_16,
+    butterfly_inverse_16,
+    butterfly_32,
+    butterfly_inverse_32,
+    num_butterflies
+};
+
+MBDstHarness::MBDstHarness()
+{
+    mb_t_size = 6400;
+#if _WIN32
+    mbuf1 = (short*)_aligned_malloc(0x1e00 * sizeof(short), 32);
+    mbuf2 = (short*)_aligned_malloc(mb_t_size, 32);
+    mbuf3 = (short*)_aligned_malloc(mb_t_size, 32);
+#else
+    posix_memalign((void**)&mbuf1, 32, 0x1e00 * sizeof(short));
+    posix_memalign((void**)&mbuf2, 32, mb_t_size);
+    posix_memalign((void**)&mbuf3, 32, mb_t_size);
+#endif
+    if (!mbuf1 || !mbuf2 || !mbuf3)
+    {
+        fprintf(stderr, "malloc failed, unable to initiate tests!\n");
+        exit(1);
+    }
+
+    for (int i = 0; i < 64 * 100; i++)
+    {
+        mbuf1[i] = rand() & PIXEL_MAX;
+    }
+
+    memset(mbuf2, 0, mb_t_size);
+    memset(mbuf3, 0, mb_t_size);
+}
+
+MBDstHarness::~MBDstHarness()
+{
+#if _WIN32
+    _aligned_free(mbuf1);
+    _aligned_free(mbuf2);
+    _aligned_free(mbuf3);
+#else
+    free(mbuf1);
+    free(mbuf2);
+    free(mbuf3);
+#endif
+}
+
+bool MBDstHarness::check_mbdst_primitive(mbdst ref, mbdst opt)
+{
+    int j = 0;
+    int mem_cmp_size = 32;
+
+    for (int i = 0; i <= 100; i++)
+    {
+        opt(mbuf1 + j, mbuf2, 16);
+        ref(mbuf1 + j, mbuf3, 16);
+
+        if (memcmp(mbuf2, mbuf3, mem_cmp_size))
+            return false;
+
+        j += 16;
+        memset(mbuf2, 0, mem_cmp_size);
+        memset(mbuf3, 0, mem_cmp_size);
+    }
+
+    return true;
+}
+
+bool MBDstHarness::check_butterfly16_primitive(butterfly ref, butterfly opt)
+{
+    int j = 0;
+    int mem_cmp_size = 320; // 2*16*10 -> sizeof(short)*number of elements*number of lines
+
+    for (int i = 0; i <= 100; i++)
+    {
+        opt(mbuf1 + j, mbuf2, 3, 10);
+        ref(mbuf1 + j, mbuf3, 3, 10);
+
+        if (memcmp(mbuf2, mbuf3, mem_cmp_size))
+            return false;
+
+        j += 16;
+        memset(mbuf2, 0, mem_cmp_size);
+        memset(mbuf3, 0, mem_cmp_size);
+    }
+
+    return true;
+}
+
+bool MBDstHarness::check_butterfly32_primitive(butterfly ref, butterfly opt)
+{
+    int j = 0;
+    int mem_cmp_size = 640; // 2*32*10 -> sizeof(short)*number of elements*number of lines
+
+    for (int i = 0; i <= 100; i++)
+    {
+        opt(mbuf1 + j, mbuf2, 3, 10);
+        ref(mbuf1 + j, mbuf3, 3, 10);
+
+        if (memcmp(mbuf2, mbuf3, mem_cmp_size))
+            return false;
+
+        j += 16;
+        memset(mbuf2, 0, mem_cmp_size);
+        memset(mbuf3, 0, mem_cmp_size);
+    }
+
+    return true;
+}
+
+bool MBDstHarness::check_butterfly8_primitive(butterfly ref, butterfly opt)
+{
+    int j = 0;
+    int mem_cmp_size = 160; // 2*8*10 -> sizeof(short)*number of elements*number of lines
+
+    for (int i = 0; i <= 100; i++)
+    {
+        opt(mbuf1 + j, mbuf2, 3, 10);
+        ref(mbuf1 + j, mbuf3, 3, 10);
+
+        if (memcmp(mbuf2, mbuf3, mem_cmp_size))
+            return false;
+
+        j += 16;
+        memset(mbuf2, 0, mem_cmp_size);
+        memset(mbuf3, 0, mem_cmp_size);
+    }
+
+    return true;
+}
+
+bool MBDstHarness::check_butterfly4_inverse_primitive(butterfly ref, butterfly opt)
+{
+    int j = 0;
+    int mem_cmp_size = 80; // 2*4*10 -> sizeof(short)*number of elements*number of lines
+
+    for (int i = 0; i <= 100; i++)
+    {
+        opt(mbuf1 + j, mbuf2, 3, 10);
+        ref(mbuf1 + j, mbuf3, 3, 10);
+
+        if (memcmp(mbuf2, mbuf3, mem_cmp_size))
+            return false;
+
+        j += 16;
+        memset(mbuf2, 0, mem_cmp_size);
+        memset(mbuf3, 0, mem_cmp_size);
+    }
+
+    return true;
+}
+
+bool MBDstHarness::check_butterfly8_inverse_primitive(butterfly ref, butterfly opt)
+{
+    int j = 0;
+    int mem_cmp_size = 160; // 2*8*10 -> sizeof(short)*number of elements*number of lines
+
+    for (int i = 0; i <= 100; i++)
+    {
+        opt(mbuf1 + j, mbuf2, 3, 10);
+        ref(mbuf1 + j, mbuf3, 3, 10);
+
+        if (memcmp(mbuf2, mbuf3, mem_cmp_size))
+            return false;
+
+        j += 16;
+        memset(mbuf2, 0, mem_cmp_size);
+        memset(mbuf3, 0, mem_cmp_size);
+    }
+
+    return true;
+}
+
+bool MBDstHarness::check_butterfly16_inverse_primitive(butterfly ref, butterfly opt)
+{
+    int j = 0;
+    int mem_cmp_size = 320; // 2*16*10 -> sizeof(short)*number of elements*number of lines
+
+    for (int i = 0; i <= 5; i++)
+    {
+        opt(mbuf1 + j, mbuf2, 3, 10);
+        ref(mbuf1 + j, mbuf3, 3, 10);
+
+        if (memcmp(mbuf2, mbuf3, mem_cmp_size))
+            return false;
+
+        j += 16;
+        memset(mbuf2, 0, mem_cmp_size);
+        memset(mbuf3, 0, mem_cmp_size);
+    }
+
+    return true;
+}
+
+bool MBDstHarness::check_butterfly32_inverse_primitive(butterfly ref, butterfly opt)
+{
+    int j = 0;
+    int mem_cmp_size = 640; // 2*16*10 -> sizeof(short)*number of elements*number of lines
+
+    for (int i = 0; i <= 5; i++)
+    {
+        opt(mbuf1 + j, mbuf2, 3, 10);
+        ref(mbuf1 + j, mbuf3, 3, 10);
+
+        if (memcmp(mbuf2, mbuf3, mem_cmp_size))
+            return false;
+
+        j += 16;
+        memset(mbuf2, 0, mem_cmp_size);
+        memset(mbuf3, 0, mem_cmp_size);
+    }
+
+    return true;
+}
+
+bool MBDstHarness::testCorrectness(const EncoderPrimitives& ref, const EncoderPrimitives& opt)
+{
+    if (opt.inversedst)
+    {
+        if (!check_mbdst_primitive(ref.inversedst, opt.inversedst))
+        {
+            printf("Inversedst: Failed!\n");
+            return false;
+        }
+    }
+
+    if (opt.partial_butterfly[butterfly_16])
+    {
+        if (!check_butterfly16_primitive(ref.partial_butterfly[butterfly_16], opt.partial_butterfly[butterfly_16]))
+        {
+            printf("\npartialButterfly%s failed\n", ButterflyConf_names[butterfly_16]);
+            return false;
+        }
+    }
+
+    if (opt.partial_butterfly[butterfly_32])
+    {
+        if (!check_butterfly32_primitive(ref.partial_butterfly[butterfly_32], opt.partial_butterfly[butterfly_32]))
+        {
+            printf("\npartialButterfly%s failed\n", ButterflyConf_names[butterfly_32]);
+            return false;
+        }
+    }
+
+    if (opt.partial_butterfly[butterfly_8])
+    {
+        if (!check_butterfly8_primitive(ref.partial_butterfly[butterfly_8], opt.partial_butterfly[butterfly_8]))
+        {
+            printf("\npartialButterfly%s failed\n", ButterflyConf_names[butterfly_8]);
+            return false;
+        }
+    }
+
+    if (opt.partial_butterfly[butterfly_inverse_4])
+    {
+        if (!check_butterfly4_inverse_primitive(ref.partial_butterfly[butterfly_inverse_4], opt.partial_butterfly[butterfly_inverse_4]))
+        {
+            printf("\npartialButterfly%s failed\n", ButterflyConf_names[butterfly_inverse_4]);
+            return false;
+        }
+    }
+
+    if (opt.partial_butterfly[butterfly_inverse_8])
+    {
+        if (!check_butterfly8_inverse_primitive(ref.partial_butterfly[butterfly_inverse_8], opt.partial_butterfly[butterfly_inverse_8]))
+        {
+            printf("\npartialButterfly%s failed\n", ButterflyConf_names[butterfly_inverse_8]);
+            return false;
+        }
+    }
+
+    if (opt.partial_butterfly[butterfly_inverse_16])
+    {
+        if (!check_butterfly16_inverse_primitive(ref.partial_butterfly[butterfly_inverse_16], opt.partial_butterfly[butterfly_inverse_16]))
+        {
+            printf("\npartialButterfly%s failed\n", ButterflyConf_names[butterfly_inverse_16]);
+            return false;
+        }
+    }
+
+    if (opt.partial_butterfly[butterfly_inverse_32])
+    {
+        if (!check_butterfly32_inverse_primitive(ref.partial_butterfly[butterfly_inverse_32], opt.partial_butterfly[butterfly_inverse_32]))
+        {
+            printf("\npartialButterfly%s failed\n", ButterflyConf_names[butterfly_inverse_32]);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+#define MBDST_ITERATIONS 100000
+
+void MBDstHarness::measureSpeed(const EncoderPrimitives& ref, const EncoderPrimitives& opt)
+{
+    Timer *t = Timer::CreateTimer();
+
+    if (opt.inversedst)
+    {
+        printf("InverseDST");
+        REPORT_SPEEDUP(MBDST_ITERATIONS,
+                       opt.inversedst(mbuf1, mbuf2, 16),
+                       ref.inversedst(mbuf1, mbuf2, 16));
+    }
+
+    for (int value = 0; value < 8; value++)
+    {
+        memset(mbuf2, 0, mb_t_size); // Initialize output buffer to zero
+        memset(mbuf3, 0, mb_t_size); // Initialize output buffer to zero
+        if (opt.partial_butterfly[value])
+        {
+            printf("partialButterfly%s", ButterflyConf_names[value]);
+            REPORT_SPEEDUP(MBDST_ITERATIONS,
+                           opt.partial_butterfly[value](mbuf1, mbuf2, 3, 10),
+                           ref.partial_butterfly[value](mbuf1, mbuf2, 3, 10));
+        }
+    }
+
+    t->Release();
+}
