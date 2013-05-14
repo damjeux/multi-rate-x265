@@ -1,0 +1,169 @@
+/*****************************************************************************
+ * Copyright (C) 2013 x265 project
+ *
+ * Authors: Min Chen <chenm003@163.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02111, USA.
+ *
+ * This program is also available under a commercial proprietary license.
+ * For more information, contact us at licensing@multicorewareinc.com.
+ *****************************************************************************/
+
+#include "primitives.h"
+#include <cstring>
+#include <assert.h>
+
+#define MAX_CU_SIZE 64
+extern char g_aucConvertToBit[];
+
+namespace {
+pixel CDECL predIntraGetPredValDC(pixel* pSrc, intptr_t iSrcStride, intptr_t iWidth, intptr_t iHeight, int bAbove, int bLeft)
+{
+    int iInd, iSum = 0;
+    pixel pDcVal;
+
+    if (bAbove)
+    {
+        for (iInd = 0; iInd < iWidth; iInd++)
+        {
+            iSum += pSrc[iInd - iSrcStride];
+        }
+    }
+    if (bLeft)
+    {
+        for (iInd = 0; iInd < iHeight; iInd++)
+        {
+            iSum += pSrc[iInd * iSrcStride - 1];
+        }
+    }
+
+    if (bAbove && bLeft)
+    {
+        pDcVal = (pixel)((iSum + iWidth) / (iWidth + iHeight));
+    }
+    else if (bAbove)
+    {
+        pDcVal = (pixel)((iSum + iWidth / 2) / iWidth);
+    }
+    else if (bLeft)
+    {
+        pDcVal = (pixel)((iSum + iHeight / 2) / iHeight);
+    }
+    else
+    {
+        pDcVal = pSrc[-1]; // Default DC value already calculated and placed in the prediction array if no neighbors are available
+    }
+
+    return pDcVal;
+}
+
+void xDCPredFiltering(pixel* pSrc, intptr_t iSrcStride, pixel* rpDst, intptr_t iDstStride, int iWidth, int iHeight)
+{
+    pixel* pDst = rpDst;
+    intptr_t x, y, iDstStride2, iSrcStride2;
+
+    // boundary pixels processing
+    pDst[0] = (pixel)((pSrc[-iSrcStride] + pSrc[-1] + 2 * pDst[0] + 2) >> 2);
+
+    for (x = 1; x < iWidth; x++)
+    {
+        pDst[x] = (pixel)((pSrc[x - iSrcStride] +  3 * pDst[x] + 2) >> 2);
+    }
+
+    for (y = 1, iDstStride2 = iDstStride, iSrcStride2 = iSrcStride - 1; y < iHeight; y++, iDstStride2 += iDstStride, iSrcStride2 += iSrcStride)
+    {
+        pDst[iDstStride2] = (pixel)((pSrc[iSrcStride2] + 3 * pDst[iDstStride2] + 2) >> 2);
+    }
+}
+
+void xPredIntraDC(pixel* pSrc, intptr_t srcStride, pixel* rpDst, intptr_t dstStride, int width, int height, int blkAboveAvailable, int blkLeftAvailable, int bFilter)
+{
+    int k, l;
+    int blkSize        = width;
+    pixel* pDst          = rpDst;
+
+    // Do the DC prediction
+    pixel dcval = (pixel) predIntraGetPredValDC(pSrc, srcStride, width, height, blkAboveAvailable, blkLeftAvailable);
+
+    for (k = 0; k < blkSize; k++)
+    {
+        for (l = 0; l < blkSize; l++)
+        {
+            pDst[k * dstStride + l] = dcval;
+        }
+    }
+    if (bFilter && blkAboveAvailable && blkLeftAvailable)
+    {
+        xDCPredFiltering(pSrc, srcStride, pDst, dstStride, width, height);
+    }
+}
+
+void xPredIntraPlanar(pixel* pSrc, intptr_t srcStride, pixel* rpDst, intptr_t dstStride, int width, int /*height*/)
+{
+    //assert(width == height);
+
+    int k, l;
+    pixel bottomLeft, topRight;
+    int horPred;
+    // OPT_ME: when width is 64, the shift1D is 8, then the dynamic range is 17 bits or [-65280, 65280], so we have to use 32 bits here
+    int32_t leftColumn[MAX_CU_SIZE + 1], topRow[MAX_CU_SIZE + 1];
+    // CHECK_ME: dynamic range is 9 bits or 15 bits(I assume max input bit_depth is 14 bits)
+    int16_t bottomRow[MAX_CU_SIZE], rightColumn[MAX_CU_SIZE];
+    int blkSize = width;
+    int offset2D = width;
+    int shift1D = g_aucConvertToBit[width] + 2;
+    int shift2D = shift1D + 1;
+
+    // Get left and above reference column and row
+    for (k = 0; k < blkSize + 1; k++)
+    {
+        topRow[k] = pSrc[k - srcStride];
+        leftColumn[k] = pSrc[k * srcStride - 1];
+    }
+
+    // Prepare intermediate variables used in interpolation
+    bottomLeft = (pixel)leftColumn[blkSize];
+    topRight   = (pixel)topRow[blkSize];
+    for (k = 0; k < blkSize; k++)
+    {
+        bottomRow[k]   = (int16_t)(bottomLeft - topRow[k]);
+        rightColumn[k] = (int16_t)(topRight   - leftColumn[k]);
+        topRow[k]      <<= shift1D;
+        leftColumn[k]  <<= shift1D;
+    }
+
+    // Generate prediction signal
+    for (k = 0; k < blkSize; k++)
+    {
+        horPred = leftColumn[k] + offset2D;
+        for (l = 0; l < blkSize; l++)
+        {
+            horPred += rightColumn[k];
+            topRow[l] += bottomRow[l];
+            rpDst[k * dstStride + l] = (pixel)((horPred + topRow[l]) >> shift2D);
+        }
+    }
+}
+}
+
+namespace x265 {
+// x265 private namespace
+
+void Setup_C_IPredPrimitives(EncoderPrimitives& p)
+{
+    p.getIPredDC = xPredIntraDC;
+    p.getIPredPlanar = xPredIntraPlanar;
+}
+}
