@@ -1,0 +1,8 @@
+syntax: glob
+build/
+**.rej
+**.orig
+**.hevc
+**.yuv
+**.y4m
+**.out
