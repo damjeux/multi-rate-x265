@@ -295,6 +295,17 @@ void Analysis::compressIntraCU(const CUData& parentCTU, const CUGeom& cuGeom, in
     bool bAlreadyDecided = parentCTU.m_lumaIntraDir[cuGeom.absPartIdx] != (uint8_t)ALL_IDX;
     bool bDecidedDepth = parentCTU.m_cuDepth[cuGeom.absPartIdx] == depth;
 
+	// stop recursion based on MR reference depth
+	if (m_param->mrMode == 2)
+	{
+		uint8_t refDepth = parentCTU.m_mrRefDepth[cuGeom.absPartIdx];
+		if (depth >= 1 && depth >= refDepth) // if depth is 0, we have to split (cf. below)
+		{
+			mightSplit = false;
+			mightNotSplit = true;
+		}
+	}
+
     if (bAlreadyDecided)
     {
         if (bDecidedDepth)
@@ -603,6 +614,17 @@ uint32_t Analysis::compressInterCU_dist(const CUData& parentCTU, const CUGeom& c
     uint32_t minDepth = m_param->rdLevel <= 4 ? topSkipMinDepth(parentCTU, cuGeom) : 0;
     uint32_t splitRefs[4] = { 0, 0, 0, 0 };
 
+	// stop recursion based on MR reference depth
+	if (m_param->mrMode == 2)
+	{
+		uint8_t refDepth = parentCTU.m_mrRefDepth[cuGeom.absPartIdx];
+		if (depth >= minDepth && depth >= refDepth)
+		{
+			mightSplit = false;
+			mightNotSplit = true;
+		}
+	}
+
     X265_CHECK(m_param->rdLevel >= 2, "compressInterCU_dist does not support RD 0 or 1\n");
 
     PMODE pmode(*this, cuGeom);
@@ -888,6 +910,18 @@ SplitData Analysis::compressInterCU_rd0_4(const CUData& parentCTU, const CUGeom&
     bool mightSplit = !(cuGeom.flags & CUGeom::LEAF);
     bool mightNotSplit = !(cuGeom.flags & CUGeom::SPLIT_MANDATORY);
     uint32_t minDepth = topSkipMinDepth(parentCTU, cuGeom);
+
+	// stop recursion based on MR reference depth
+	if (m_param->mrMode == 2)
+	{
+		uint8_t refDepth = parentCTU.m_mrRefDepth[cuGeom.absPartIdx];
+		if (depth >= minDepth && depth >= refDepth)
+		{
+			mightSplit = false;
+			mightNotSplit = true;
+		}
+	}
+
     bool skipModes = false; /* Skip any remaining mode analyses at current depth */
     bool skipRecursion = false; /* Skip recursion */
     bool splitIntra = true;
@@ -1411,6 +1445,18 @@ SplitData Analysis::compressInterCU_rd5_6(const CUData& parentCTU, const CUGeom&
 
     bool mightSplit = !(cuGeom.flags & CUGeom::LEAF);
     bool mightNotSplit = !(cuGeom.flags & CUGeom::SPLIT_MANDATORY);
+
+	// stop recursion based on MR reference depth
+	if (m_param->mrMode == 2)
+	{
+		uint8_t refDepth = parentCTU.m_mrRefDepth[cuGeom.absPartIdx];
+		if (depth >= refDepth)
+		{
+			mightSplit = false;
+			mightNotSplit = true;
+		}
+	}
+
     bool skipRecursion = false;
     bool skipModes = false;
     bool splitIntra = true;

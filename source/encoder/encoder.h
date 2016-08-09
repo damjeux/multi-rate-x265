@@ -110,7 +110,9 @@ public:
     DPB*               m_dpb;
     Frame*             m_exportedPic;
     FILE*              m_analysisFile;
-    x265_param*        m_param;
+	// additional analysis file for multi-rate
+	FILE*			   m_mrDataFile;
+	x265_param*        m_param;
     x265_param*        m_latestParam;     // Holds latest param during a reconfigure
     RateControl*       m_rateControl;
     Lookahead*         m_lookahead;

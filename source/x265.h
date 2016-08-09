@@ -489,6 +489,9 @@ typedef struct x265_zone
  * x265_param as an opaque data structure */
 typedef struct x265_param
 {
+	/*== Multi-rate encoding ==*/
+	int mrMode;
+
     /* x265_param_default() will auto-detect this cpu capability bitmap.  it is
      * recommended to not change this value unless you know the cpu detection is
      * somehow flawed on your target hardware. The asm function tables are

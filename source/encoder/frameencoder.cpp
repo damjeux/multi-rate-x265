@@ -145,6 +145,11 @@ bool FrameEncoder::init(Encoder *top, int numRows, int numCols)
     else
         m_param->noiseReductionIntra = m_param->noiseReductionInter = 0;
 
+	// calculate number of CTUs
+	int numCuInWidth = (m_param->sourceWidth + g_maxCUSize - 1) / g_maxCUSize;
+	int numCuInHeight = (m_param->sourceHeight + g_maxCUSize - 1) / g_maxCUSize;
+	m_numCTUs = numCuInWidth * numCuInHeight;
+
     return ok;
 }
 
@@ -993,8 +998,53 @@ void FrameEncoder::processRowEncoder(int intRow, ThreadLocalData& tld)
             rowCoder.loadContexts(m_rows[row - 1].bufferedEntropy);
         }
 
+
+		// Multi-rate mode
+		int mrMode = m_param->mrMode;
+		uint32_t numPartitions = ctu->getNumPartitions();
+
+		// LOAD mode
+		if (mrMode == 2)
+		{
+			size_t size_read;
+			int seek_in;
+			long seek_pos;
+
+			// position to write
+			seek_pos = sizeof(uint8_t) * numPartitions * (ctu->getCUAddr() + m_frame->m_encodeOrder * m_numCTUs);
+
+			// get to position
+			seek_in = fseek(m_top->m_mrDataFile, seek_pos, SEEK_SET);
+			if (seek_in) fputs("Seeking error", stderr);
+
+			// write
+			size_read = fread(ctu->getMRRefDepth(), sizeof(uint8_t), numPartitions, m_top->m_mrDataFile);
+			if (size_read != numPartitions) fputs("Reading error", stderr);
+		}
+
         // Does all the CU analysis, returns best top level mode decision
         Mode& best = tld.analysis.compressCTU(*ctu, *m_frame, m_cuGeoms[m_ctuGeomMap[cuAddr]], rowCoder);
+
+		// WRITE mode
+		if (mrMode == 1)
+		{
+			size_t size_w;
+			int seek_in;
+			long seek_pos;
+
+			// position to write
+			seek_pos = sizeof(uint8_t) * numPartitions * (ctu->getCUAddr() + m_frame->m_encodeOrder * m_numCTUs);
+
+			// get to position
+			seek_in = fseek(m_top->m_mrDataFile, seek_pos, SEEK_SET);
+			if (seek_in) fputs("Seeking error", stderr);
+
+			// write
+			size_w = fwrite(ctu->getDepth(), sizeof(uint8_t), numPartitions, m_top->m_mrDataFile);
+			if (size_w != numPartitions) fputs("Reading error", stderr);
+
+		}
+
 
         // take a sample of the current active worker count
         ATOMIC_ADD(&m_totalActiveWorkerCount, m_activeWorkerCount);

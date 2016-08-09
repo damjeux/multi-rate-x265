@@ -232,6 +232,7 @@ static const struct option long_options[] =
     { "no-temporal-layers",   no_argument, NULL, 0 },
     { "qg-size",        required_argument, NULL, 0 },
     { "recon-y4m-exec", required_argument, NULL, 0 },
+	{ "mr-mode", required_argument, NULL, 0 }, /* // additional option for multi rate mode */
     { 0, 0, 0, 0 },
     { 0, 0, 0, 0 },
     { 0, 0, 0, 0 },

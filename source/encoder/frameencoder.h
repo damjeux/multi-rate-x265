@@ -181,6 +181,9 @@ public:
     Bitstream*               m_outStreams;
     uint32_t*                m_substreamSizes;
 
+	// number of CTUs in one frame
+	int						 m_numCTUs;
+
     CUGeom*                  m_cuGeoms;
     uint32_t*                m_ctuGeomMap;
 

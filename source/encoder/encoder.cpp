@@ -73,6 +73,7 @@ Encoder::Encoder()
     m_latestParam = NULL;
     m_threadPool = NULL;
     m_analysisFile = NULL;
+	m_mrDataFile = NULL;
     m_offsetEmergency = NULL;
     for (int i = 0; i < X265_MAX_FRAME_THREADS; i++)
         m_frameEncoder[i] = NULL;
@@ -330,6 +331,13 @@ void Encoder::create()
         }
     }
 
+	// multi-rate mode
+	if (m_param->mrMode == 1)
+		m_mrDataFile = fopen("analysisData.bin", "wb"); // write, binary
+	else if (m_param->mrMode == 2)
+		m_mrDataFile = fopen("analysisData.bin", "rb"); // read, binary
+
+
     m_bZeroLatency = !m_param->bframes && !m_param->lookaheadDepth && m_param->frameNumThreads == 1;
 
     m_aborted |= parseLambdaFile(m_param);
@@ -405,6 +413,9 @@ void Encoder::destroy()
 
     if (m_analysisFile)
         fclose(m_analysisFile);
+
+	if (m_mrDataFile)
+		fclose(m_mrDataFile);
 
     if (m_param)
     {
