@@ -1010,14 +1010,14 @@ void FrameEncoder::processRowEncoder(int intRow, ThreadLocalData& tld)
 			int seek_in;
 			long seek_pos;
 
-			// position to write
+			// position to read
 			seek_pos = sizeof(uint8_t) * numPartitions * (ctu->getCUAddr() + m_frame->m_encodeOrder * m_numCTUs);
 
 			// get to position
 			seek_in = fseek(m_top->m_mrDataFile, seek_pos, SEEK_SET);
 			if (seek_in) fputs("Seeking error", stderr);
 
-			// write
+			// read
 			size_read = fread(ctu->getMRRefDepth(), sizeof(uint8_t), numPartitions, m_top->m_mrDataFile);
 			if (size_read != numPartitions) fputs("Reading error", stderr);
 		}
