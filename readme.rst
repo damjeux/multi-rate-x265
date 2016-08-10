@@ -18,8 +18,11 @@ When mr-mode is 2, the (previously created) analysisData.bin file is read and th
 
 example:
 ./x265 video.yuv -o bitstream.bin --qp 22 --mr-mode 1
+
 ./x265 video.yuv -o bitstream.bin --qp 27 --mr-mode 2
+
 ./x265 video.yuv -o bitstream.bin --qp 32 --mr-mode 2
+
 ./x265 video.yuv -o bitstream.bin --qp 37 --mr-mode 2
 
 
