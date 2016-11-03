@@ -1,5 +1,6 @@
-This software implements the CU structure reuse method proposed in the paper: D. Schroeder, P. Rehm, and E. Steinbach, "Block structure reuse for multi-rate High Efficiency Video Coding", Proc. IEEE International Conference on Image Processing (ICIP), Sep. 2015, Quebec, Canada. A free copy of this paper can be found at: http://www.lmt.ei.tum.de/forschung/publikationen/dateien/Schroeder2015Blockstructurereusefor.pdf
+This multi-rate encoder based on x265 version 2.0 reduces the encoding time for multiple representations by 10 to 20% compared to the original x265 encoder. A few example results can be found on https://damienschroeder.wordpress.com/2016/08/10/multi-rate-hevc-with-x265-for-adaptive-http-streaming/
 
+The implemented method was proposed in the paper: D. Schroeder, P. Rehm, and E. Steinbach, "Block structure reuse for multi-rate High Efficiency Video Coding", Proc. IEEE International Conference on Image Processing (ICIP), Sep. 2015, Quebec, Canada. A free copy of this paper can be found at: http://www.lmt.ei.tum.de/forschung/publikationen/dateien/Schroeder2015Blockstructurereusefor.pdf
 
 ====================================================
 HOW TO
